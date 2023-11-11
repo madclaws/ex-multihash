@@ -114,10 +114,6 @@ iex> Multihash.decode("Hello")
 {:error, "Invalid hash code"}
 ```
 
-## Maintainers
-
-Captain: [@zabirauf](https://github.com/zabirauf).
-
 ## Contribute
 
 Contributions welcome. Please check out [the issues](https://github.com/multiformats/ex_multihash/issues).

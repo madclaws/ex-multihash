@@ -18,12 +18,7 @@ defmodule Multihash.Mixfile do
 
   def package do
     [
-      licenses: ["MIT License"],
-      maintainers: ["Zohaib Rauf", "Multiformat Organization"],
-      links: %{
-        "Github" => "https://github.com/multiformats/ex_multihash",
-        "Docs" => "https://hexdocs.pm/ex_multihash"
-      }
+      licenses: ["MIT License"]
     ]
   end
 
