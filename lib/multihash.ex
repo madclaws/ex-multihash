@@ -6,11 +6,11 @@ defmodule Multihash do
   """
 
   @type t :: %Multihash{name: atom, code: integer, length: integer, digest: integer}
-  defstruct name: :nil, code: 0, length: 0, digest: 0
+  defstruct name: nil, code: 0, length: 0, digest: 0
 
-  @type hash_type :: :sha1 | :sha2_256 | :sha2_512 | :sha3 | :blake2b | :blake2s
+  @type hash_type :: :sha1 | :sha2_256 | :sha2_512 | :sha3 | :blake2b | :blake2s | :blake3
 
-  @type error :: {:error, String.t}
+  @type error :: {:error, String.t()}
 
   @type on_encode :: {:ok, binary} | error
 
@@ -19,12 +19,13 @@ defmodule Multihash do
   @type integer_default :: integer | :default
 
   @hash_info %{
-    :sha1     => [code: 0x11, length: 20],
+    :sha1 => [code: 0x11, length: 20],
     :sha2_256 => [code: 0x12, length: 32],
     :sha2_512 => [code: 0x13, length: 64],
-    :sha3     => [code: 0x14, length: 64],
-    :blake2b  => [code: 0x40, length: 64],
-    :blake2s  => [code: 0x41, length: 32]
+    :sha3 => [code: 0x14, length: 64],
+    :blake2b => [code: 0xB240, length: 64],
+    :blake2s => [code: 0xB244, length: 32],
+    :blake3 => [code: 0x1E, length: 32]
   }
 
   @code_hash_map %{
@@ -32,10 +33,10 @@ defmodule Multihash do
     0x12 => :sha2_256,
     0x13 => :sha2_512,
     0x14 => :sha3,
-    0x40 => :blake2b,
-    0x41 => :blake2s
+    0xB240 => :blake2b,
+    0xB244 => :blake2s,
+    0x1E => :blake3
   }
-
 
   # Error strings
   @error_invalid_digest_hash "Invalid digest or hash"
@@ -83,26 +84,23 @@ defmodule Multihash do
       {:error, "Invalid truncation length"}
 
   """
+  @spec encode(integer() | binary(), binary, integer_default) :: on_encode
   def encode(hash_code, digest, length \\ :default)
+  def encode(hash_code, digest, length) when is_integer(hash_code) and is_binary(digest),
+    do: encode(<<hash_code>>, digest, length)
 
-  @spec encode(integer, binary, integer_default) :: on_encode
-  def encode(hash_code, digest, length) when is_number(hash_code) and is_binary(digest), do:
-    encode(<<hash_code>>, digest, length)
-
-  @spec encode(binary, binary, integer_default) :: on_encode
   def encode(<<_hash_code>> = hash_code, digest, length) when is_binary(digest) do
     with {:ok, function} <- get_hash_function(hash_code),
-      do: encode(function, digest, length)
+         do: encode(function, digest, length)
   end
 
-  @spec encode(hash_type, binary, integer_default) :: on_encode
   def encode(hash_func, digest, length) when is_atom(hash_func) and is_binary(digest) do
     with {:ok, info} <- get_hash_info(hash_func),
          :ok <- check_digest_length(info, digest, length),
-    do: encode_internal(info, digest, length)
+         do: encode_internal(info, digest, length)
   end
 
-  def encode(_digest,_hash_code, _length), do: {:error, @error_invalid_digest_hash}
+  def encode(_digest, _hash_code, _length), do: {:error, @error_invalid_digest_hash}
 
   @doc ~S"""
   Decode the provided multi hash to %Multihash{code: , name: , length: , digest: }
@@ -136,7 +134,7 @@ defmodule Multihash do
          {:ok, info} <- get_hash_info(function),
          :ok <- check_length(info, length),
          :ok <- check_truncated_digest_length(info, digest, length),
-    do: decode_internal(info, digest, length)
+         do: decode_internal(info, digest, length)
   end
 
   def decode(_), do: {:error, @error_invalid_multihash}
@@ -152,7 +150,7 @@ defmodule Multihash do
       iex> Multihash.is_app_code(<<0x10>>)
       false
   """
-  @spec is_app_code(<<_ :: 8 >>) :: boolean
+  @spec is_app_code(<<_::8>>) :: boolean
   def is_app_code(<<code>>), do: code >= 0 and code < 0x10
 
   @doc ~S"""
@@ -169,49 +167,43 @@ defmodule Multihash do
       iex> Multihash.is_valid_code(<<0x21>>)
       false
   """
-  @spec is_valid_code(<<_ :: 8 >>) :: boolean
+  @spec is_valid_code(<<_::8>>) :: boolean
   def is_valid_code(<<_>> = code) do
     if is_app_code(code) do
       true
     else
-      is_valid_hash_code code
+      is_valid_hash_code(code)
     end
   end
 
-  @doc """
-  Checks if the `code` is a valid hash code
-  """
-  defp is_valid_hash_code(<<_>> = code), do: is_valid_hash_code get_hash_function(code)
+  # Checks if the `code` is a valid hash code
+  defp is_valid_hash_code(<<_>> = code), do: is_valid_hash_code(get_hash_function(code))
   defp is_valid_hash_code({:ok, _}), do: true
   defp is_valid_hash_code({:error, _}), do: false
 
-  @doc """
-  Encode the `digest` to multihash, truncating it to the `trunc_length` if necessary
-  """
+  # Encode the `digest` to multihash, truncating it to the `trunc_length` if necessary
   defp encode_internal([code: code, length: length], <<digest::binary>>, trunc_length) do
     case trunc_length do
-      :default -> {:ok,  <<code, length>> <> digest}
+      :default -> {:ok, <<code, length>> <> digest}
       l when 0 < l and l <= length -> {:ok, <<code, l>> <> Kernel.binary_part(digest, 0, l)}
       _ -> {:error, @error_invalid_trunc_length}
     end
   end
 
-  @doc """
-  Decode the multihash to %Multihash{name, code, length, digest} structure
-  """
+  # Decode the multihash to %Multihash{name, code, length, digest} structure
   defp decode_internal([code: code, length: _default_length], <<digest::binary>>, length) do
-    {:ok, name} = get_hash_function <<code>>
+    {:ok, name} = get_hash_function(<<code>>)
+
     {:ok,
-      %Multihash{
-        name: name,
-        code: code,
-        length: length,
-        digest: digest}}
+     %Multihash{
+       name: name,
+       code: code,
+       length: length,
+       digest: digest
+     }}
   end
 
-  @doc """
-  Checks if the incoming multihash has a `length` field equal or lower than the `default_length` of the hash function
-  """
+  # Checks if the incoming multihash has a `length` field equal or lower than the `default_length` of the hash function
   defp check_length([code: _code, length: default_length], original_length) do
     case original_length do
       l when 0 < l and l <= default_length -> :ok
@@ -219,20 +211,18 @@ defmodule Multihash do
     end
   end
 
-  @doc """
-  Checks if the incoming multihash has a `length` field fitting the actual size of the possibly truncated `digest`
-  """
-  defp check_truncated_digest_length([code: _code, length: _default_length], digest, length) when is_binary(digest) do
+  # Checks if the incoming multihash has a `length` field fitting the actual size of the possibly truncated `digest`
+  defp check_truncated_digest_length([code: _code, length: _default_length], digest, length)
+       when is_binary(digest) do
     case byte_size(digest) do
       ^length -> :ok
       _ -> {:error, @error_invalid_size}
     end
   end
 
-  @doc """
-  Checks if the length of the `digest` is the default length for the hash function,or at least greater than the the desired truncated length
-  """
-  defp check_digest_length([code: _code, length: default_length], digest, trunc_length) when is_binary(digest) do
+  # Checks if the length of the `digest` is the default length for the hash function,or at least greater than the the desired truncated length
+  defp check_digest_length([code: _code, length: default_length], digest, trunc_length)
+       when is_binary(digest) do
     case byte_size(digest) do
       ^default_length -> :ok
       digest_len when trunc_length != :default and digest_len >= trunc_length -> :ok
@@ -240,26 +230,19 @@ defmodule Multihash do
     end
   end
 
-  @doc """
-  Get hash info from the @hash_info keyword map based on the provided `hash_func`
-  """
-  defp get_hash_info(hash_func) when is_atom(hash_func), do:
-    get_from_dict(@hash_info, hash_func, @error_invalid_hash_function)
+  # Get hash info from the @hash_info keyword map based on the provided `hash_func`
+  defp get_hash_info(hash_func) when is_atom(hash_func),
+    do: get_from_dict(@hash_info, hash_func, @error_invalid_hash_function)
 
-  @doc """
-  Get hash function from the @code_hash_map based on the `code` key
-  """
-  defp get_hash_function(<<code>>), do:
-      get_from_dict(@code_hash_map, code, @error_invalid_hash_code)
+  # Get hash function from the @code_hash_map based on the `code` key
+  defp get_hash_function(<<code>>),
+    do: get_from_dict(@code_hash_map, code, @error_invalid_hash_code)
 
-  @doc """
-  Generic function that retrieves a key from the dictionary and if the key is not there then returns {:error, `failure_message`}
-  """
+  # Generic function that retrieves a key from the dictionary and if the key is not there then returns {:error, `failure_message`}
   defp get_from_dict(dict, key, failure_message) do
     case Map.get(dict, key, :none) do
       :none -> {:error, failure_message}
-      value-> {:ok, value}
+      value -> {:ok, value}
     end
   end
-
 end

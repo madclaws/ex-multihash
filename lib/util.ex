@@ -21,15 +21,14 @@ defmodule Multihash.Util do
       <<19, 64, 54, 21, 248, 12, 157, 41, 62, 215, 64, 38, 135, 249, 75, 34, 213, 142, 82, 155, 140, 199, 145, 111, 143, 172, 127, 221, 247, 251, 213, 175, 76, 247, 119, 211, 215, 149, 167, 160, 10, 22, 191, 126, 127, 63, 185, 86, 30, 233, 186, 174, 72, 13, 169, 254, 122, 24, 118, 158, 113, 136, 107, 3, 243, 21>>
 
   """
-  @spec sum(binary, Multihash.hash_type) :: binary
+  @spec sum(binary, Multihash.hash_type()) :: binary
   def sum(data, :sha1), do: :crypto.hash(:sha, data) |> create_multihash(:sha1)
   def sum(data, :sha2_256), do: :crypto.hash(:sha256, data) |> create_multihash(:sha2_256)
   def sum(data, :sha2_512), do: :crypto.hash(:sha512, data) |> create_multihash(:sha2_512)
 
-  @spec create_multihash(binary, Multihash.hash_type) :: binary
+  @spec create_multihash(binary, Multihash.hash_type()) :: binary
   defp create_multihash(digest, hash) do
     {:ok, multihash} = Multihash.encode(hash, digest)
     multihash
   end
-
 end
