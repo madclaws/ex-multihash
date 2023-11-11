@@ -1,11 +1,8 @@
-**is project is no longer maintained and has been archived.**
-
-ex_multihash
+ex-multihash
 ============
 
 [![hex.pm version](https://img.shields.io/hexpm/v/httpotion.svg?style=flat-square)](https://hex.pm/packages/ex_multihash)
 [![API Docs](https://img.shields.io/badge/api-docs-yellow.svg?style=flat-square)](http://hexdocs.pm/ex_multihash/)
-[![Travis CI](https://img.shields.io/travis/multiformats/ex_multihash.svg?style=flat-square&branch=master)](https://travis-ci.org/multiformats/ex_multihash)
 [![Inline docs](http://inch-ci.org/github/multiformats/ex_multihash.svg)](http://inch-ci.org/github/multiformats/ex_multihash)
 [![](https://img.shields.io/badge/project-multiformats-blue.svg?style=flat-square)](https://github.com/multiformats/multiformats)
 [![](https://img.shields.io/badge/freenode-%23ipfs-blue.svg?style=flat-square)](https://webchat.freenode.net/?channels=%23ipfs)
@@ -37,7 +34,7 @@ To use ex_multihash add to your `mix.exs` file:
 ```elixir
 defp deps do
   [
-    {:ex_multihash, "~> 1.0"}
+    {:ex_multihash, git: "https://github.com/madclaws/ex-multihash.git"}
   ]
 end
 ```
